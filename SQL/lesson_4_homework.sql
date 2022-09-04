@@ -74,10 +74,10 @@ where class = 'Kongo'
 
 create view all_products_flag_300 as
 select model, price,
-case when price > 300
-then 1
-else 0
-end flag
+	case when price > 300
+	then 1
+	else 0
+	end flag
 from 
 (select model m,price
 from pc p  
@@ -233,26 +233,26 @@ p.model = pr.model
 
 create view sunk_ships_by_classes as
 with sunk_ships as(
-select count(name) c, coalesce (class, '0') as class from outcomes o 
-left join
-ships s 
-on
-o.ship = s.name
-where result = 'sunk'
-group by class)
+	select count(name) c, coalesce (class, '0') as class from outcomes o 
+	left join
+	ships s 
+	on
+	o.ship = s.name
+	where result = 'sunk'
+	group by class)
 SELECT *
 FROM sunk_ships
 
 --или так, не понял что нужно на 0 заменить =), если count, то получилось так
    
 with sunk_ships as(
-select count(name) c, class from outcomes o 
-left join
-ships s 
-on
-o.ship = s.name
-where result = 'OK'
-group by class)
+	select count(name) c, class from outcomes o 
+	left join
+	ships s 
+	on
+	o.ship = s.name
+	where result = 'OK'
+	group by class)
 SELECT class,
 case when class is null 
 then 0
