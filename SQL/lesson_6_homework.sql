@@ -24,6 +24,7 @@ explane select max(two) from sint_test
 
 -- я пока не разобрался с типами данных, и способ долго реализуется, наверно,
 -- есть более простой вариант
+-- как верно выбрать тип данных пока не разобрался, везде текст
 
 (base) andrejmironov@MacBook-Air-Andrej ~ % psql
 psql (14.5 (Homebrew))
