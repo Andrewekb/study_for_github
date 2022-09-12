@@ -9,8 +9,6 @@ drop table sint_test
 
 create table sint_test (one int, two int, four int, five int);
 
-select max(two) from sint_test 
-
 insert into sint_test (one, two, four, five) 
 values (generate_series(1,10000),random() * 1000000 , random() * 1000000, random() * 1000000);
 
