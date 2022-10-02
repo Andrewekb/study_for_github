@@ -1,8 +1,13 @@
 --task1  (lesson9)
 -- oracle: https://www.hackerrank.com/challenges/the-report/problem
 
+-- вы решали на уроке, последнее задание задвоено с данным
+
 --task2  (lesson9)
 -- oracle: https://www.hackerrank.com/challenges/occupations/problem
+
+-- разобрался, хотел попробовать сделать в PG на нашей базе, нагуглил, что нужно поставить расширение в ДБ, но прав таких нет
+-- с pivot какое то не очевидное решение
 
 select doctor, professor, singer, actor from
 (select * from
