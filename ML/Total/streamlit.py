@@ -28,7 +28,7 @@ def change_DESTANATION_AIRPORT():
     os.chdir('{}'.format(airport))
     with open('metrix.pkl', 'rb') as f:
         metrix = pickle.load(f)
-    return list(metrix.query("rsme < 0.2")['name'])
+    return list(metrix.query("rsme < 0.20")['name'])
     
 
 #функция для предсказанния
