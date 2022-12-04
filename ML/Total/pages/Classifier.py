@@ -161,7 +161,6 @@ if st.button('Попарная корреляция/ковариация'):
 
 
 if st.button('go!'):
-    a = 1
     C =  C[options]
     st.text(C.columns)
 
@@ -266,6 +265,7 @@ if st.button('go!'):
     X_test['ARRIVAL_DELAY'] = y_test['ARRIVAL_DELAY']
     X_test['PRED'] = y_test['PRED']
 
+    st.text(a_list)
     for column in a_list:
         X_test['{}'.format(column)] = le.inverse_transform(X_test['{}'.format(column)])
 
