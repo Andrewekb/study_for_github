@@ -8,6 +8,7 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import MinMaxScaler
 
 
@@ -42,6 +43,36 @@ def get_airport():
 
 
 
+@st.cache(allow_output_mutation=True)
+def get_weather():
+    url = "Atlanta.csv"
+    return pd.read_csv(url)
+
+
+
+code = '''
+!pip install wwo_hist
+from wwo_hist import retrieve_hist_data
+
+
+
+frequency = 1
+start_date = '1-JAN-2015'
+end_date = '30-SEP-2015'
+api_key = 'd3307ad7a39849fba4a134542221212'
+location_list = ['Atlanta']
+hist_weather_data = retrieve_hist_data(api_key,
+                                location_list,
+                                start_date,
+                                end_date,
+                                frequency,
+                                location_label = False,
+                                export_csv = True,
+                                store_df = True)
+ '''
+st.code(code, language='python')
+
+
 
 
 a = get_flights()
@@ -56,6 +87,7 @@ if airport == 'ALL':
     ll = a
 else:
    ll = a.query("ORIGIN_AIRPORT == '{}'".format(airport))
+
 
 
 st.text('Общее количество возможных направлений {}'.format(ll.DESTINATION_AIRPORT.nunique()))
@@ -78,6 +110,13 @@ ll['AIRLINE'] = ll['AIRLINE'].astype(str)
 ll = ll.loc[ll['DATE_DAY'].between('2015-01-01', '2015-09-30')]
 
 
+if airport == 'ATL':
+    c = get_weather()
+    c = c[['precipMM', 'tempC', 'visibility', 'windspeedKmph', 'date_time']]
+    c['date_time'] = pd.to_datetime(c['date_time'])
+    ll = ll.merge(c, how='left', left_on='DATE_HOUR', right_on='date_time')
+    ll.drop('date_time', inplace=True, axis=1)
+
 
 
 
@@ -93,18 +132,27 @@ code = '''
        'ORIGIN_AIRPORT', 'DESTINATION_AIRPORT',
        'SCHEDULED_DEPARTURE', 'DISTANCE',
        'ARRIVAL_DELAY', 'HOUR', 'MINUTE',
-       'DATE_HOUR', 'PROBABILITY', 'COUNT_HOUR', 'COUNT_DAY']]
+       'DATE_HOUR', 'PROBABILITY', 'COUNT_HOUR', 'COUNT_DAY',
+       'precipMM', 'tempC', 'visibility', 'windspeedKmph']]
  '''
 st.code(code, language='python')
 
 
 
+if airport == 'ATL':
+    C = ll[['MONTH', 'DAY_OF_WEEK', 'AIRLINE','SCHEDULED_TIME',
+            'ORIGIN_AIRPORT', 'DESTINATION_AIRPORT',
+            'SCHEDULED_DEPARTURE', 'DISTANCE',
+            'ARRIVAL_DELAY', 'HOUR', 'MINUTE',
+            'DATE_HOUR', 'PROBABILITY', 'COUNT_HOUR', 'COUNT_DAY', 
+            'precipMM', 'tempC', 'visibility', 'windspeedKmph'  ]]
 
-C = ll[['MONTH', 'DAY_OF_WEEK', 'AIRLINE','SCHEDULED_TIME',
-       'ORIGIN_AIRPORT', 'DESTINATION_AIRPORT',
-       'SCHEDULED_DEPARTURE', 'DISTANCE',
-       'ARRIVAL_DELAY', 'HOUR', 'MINUTE',
-       'DATE_HOUR', 'PROBABILITY', 'COUNT_HOUR', 'COUNT_DAY']]
+else:
+    C = ll[['MONTH', 'DAY_OF_WEEK', 'AIRLINE','SCHEDULED_TIME',
+            'ORIGIN_AIRPORT', 'DESTINATION_AIRPORT',
+            'SCHEDULED_DEPARTURE', 'DISTANCE',
+            'ARRIVAL_DELAY', 'HOUR', 'MINUTE',
+            'DATE_HOUR', 'PROBABILITY', 'COUNT_HOUR', 'COUNT_DAY']]
 
 
 options = st.multiselect(
@@ -217,10 +265,10 @@ if st.button('go!'):
     #список с исключениями
     a = list(a.ARRIVAL_DELAY)
     #исключаю выбросы
-    C = C.query("ARRIVAL_DELAY != @a")
+    C_1 = C.query("ARRIVAL_DELAY != @a")
 
 
-    fig = px.box(C['ARRIVAL_DELAY'], title='Распределение задержки вылета, минуты')
+    fig = px.box(C_1['ARRIVAL_DELAY'], title='Распределение задержки вылета, минуты')
     fig.show()
     st.plotly_chart(fig, use_container_width=True)
 
@@ -326,3 +374,96 @@ if st.button('go!'):
     fig.update_layout(mapbox_style='open-street-map')
     fig.show()
     st.plotly_chart(fig)
+
+
+
+
+
+# wisout Q13
+
+
+
+
+
+
+
+    C_1.drop(['PROBABILITY'], axis=1, inplace=True)
+
+    #формирую выборки - обучающую и тестовую
+    X_train,X_test, y_train, y_test = train_test_split(C_1.drop('ARRIVAL_DELAY',axis=1),
+                                                        C_1.ARRIVAL_DELAY,
+                                                        shuffle = False,# временной ряд, отключаем перемешивание
+                                                        test_size = 0.25)
+
+    
+
+    dtc = DecisionTreeClassifier()
+    dtc.fit(X_train, y_train)
+    print('Ошибка на обучающей выборке', (mean_squared_error(y_train, dtc.predict(X_train)))**0.5)
+    pred = dtc.predict(X_test)
+    print('Ошибка на тесте', (mean_squared_error(y_test, pred))**0.5)
+
+  
+
+
+    y_test = y_test.reset_index()
+    y_test['PRED'] = list(pred)
+    y_test = y_test.set_index('DATE_HOUR')
+    X_test['ARRIVAL_DELAY'] = y_test['ARRIVAL_DELAY']
+    X_test['PRED'] = y_test['PRED']
+
+    st.text(a_list)
+    for column in a_list:
+        X_test['{}'.format(column)] = le.inverse_transform(X_test['{}'.format(column)])
+
+
+
+
+    X_test['PROBABILITY'] = np.where(X_test['ARRIVAL_DELAY']>0, 0, 1)
+    X_test['PROBABILITY_PRED'] = np.where(X_test['PRED']>0, 0, 1)
+    X_test = X_test.reset_index()
+    X_test['MSE'] = (X_test['PRED'] - X_test['ARRIVAL_DELAY'])**2
+    A = X_test.groupby('DESTINATION_AIRPORT')['ARRIVAL_DELAY'].count().reset_index().rename(columns={'ARRIVAL_DELAY':'COUNT'})
+    X_test = X_test.merge(A, how='left', left_on='DESTINATION_AIRPORT', right_on='DESTINATION_AIRPORT' )
+    
+
+    X_test = X_test.groupby('DESTINATION_AIRPORT').mean()
+    X_test['RMSE'] = round(np.sqrt(X_test['MSE']),0)
+    X_test = X_test.query("COUNT > 60")[['ARRIVAL_DELAY', 'PRED',  'PROBABILITY', 'PROBABILITY_PRED', 'RMSE', 'COUNT']]
+  
+    X_test = X_test.sort_values(by=['RMSE','ARRIVAL_DELAY'],ascending=[True, True])
+    st.dataframe(X_test)
+
+    fig = px.bar(X_test,y=['PROBABILITY', 'PROBABILITY_PRED'], barmode = 'group', title='Сравнение вероятностей положительного исхода')
+    fig.show()
+    st.plotly_chart(fig, use_container_width=True)
+
+
+    fig = px.bar(X_test,y=['ARRIVAL_DELAY', 'PRED'], barmode = 'group', title='Сравнение задержки вылета')
+    fig.show()
+    st.plotly_chart(fig, use_container_width=True)
+
+    X_test = X_test.reset_index().head(3)
+
+
+    t = {'DESTINATION_AIRPORT':'{}'.format(airport), 'ARRIVAL_DELAY':0, 'PRED':0,  'PROBABILITY':0, 'PROBABILITY_PRED':0, 'RMSE':50, 'COUNT':0}
+    X_test = X_test.append(t, ignore_index=True)
+
+    X_test = X_test.reset_index().merge(b, how='left', left_on='DESTINATION_AIRPORT', right_on='IATA_CODE')
+
+
+    fig = px.scatter_mapbox(X_test,
+                    lon = X_test.LONGITUDE,
+                    lat = X_test.LATITUDE,
+                    zoom = 2,
+                    color = X_test.RMSE,
+                    size = X_test.RMSE ,
+                    hover_name="DESTINATION_AIRPORT",
+                    width = 800,
+                    height = 600,
+                    title='Лучшие направления вылета'
+                                )
+    fig.update_layout(mapbox_style='open-street-map')
+    fig.show()
+    st.plotly_chart(fig)
+

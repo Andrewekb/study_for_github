@@ -79,6 +79,10 @@ flights = flights.merge(B, how='left', left_on=['ORIGIN_AIRPORT', 'DATE_DAY'], r
 st.code(code, language='python')
 
 
+
+
+
+
 st.text("Количество рейсов в день")
 fig = ll.groupby('DATE_DAY')['DATE_HOUR'].count().reset_index().rename(columns={'DATE_HOUR':'Количество рейсов'}).set_index('DATE_DAY')
 st.line_chart(fig)
